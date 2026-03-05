@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/mongodb";
+import dbConnect from "@/lib/mongodb";
 import FeePayment from "@/models/FeePayment";
 
 export async function GET() {
     try {
-        await connectToDatabase();
+        await dbConnect();
         const payments = await FeePayment.find().populate("student").populate("fee_master");
         return NextResponse.json(payments);
     } catch (error) {
@@ -14,7 +14,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
     try {
-        await connectToDatabase();
+        await dbConnect();
         const body = await req.json();
         const payment = await FeePayment.create(body);
         return NextResponse.json(payment, { status: 201 });

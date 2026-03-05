@@ -1,683 +1,199 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
-export default function StudentCategory() {
-     const [openFilter, setOpenFilter] = useState<"class" | "section" | "action" | "pagination" | "export" | null>(null);
+interface Branch {
+     _id: string;
+     name: string;
+     url: string;
+}
 
-     const toggleFilter = (type: "class" | "section" | "action" | "pagination" | "export") => {
-          setOpenFilter(openFilter === type ? null : type);
+interface Stats {
+     totalStudents: number;
+     onlineAdmissions: number;
+     totalFees: number;
+     paidFees: number;
+}
+
+export default function MultiBranchOverview() {
+     const [branches, setBranches] = useState<Branch[]>([]);
+     const [stats, setStats] = useState<Stats>({
+          totalStudents: 0,
+          onlineAdmissions: 0,
+          totalFees: 0,
+          paidFees: 0,
+     });
+     const [loading, setLoading] = useState(true);
+
+     const fetchData = async () => {
+          setLoading(true);
+          try {
+               const [branchRes, studentRes, paymentRes, onlineAdmRes] = await Promise.all([
+                    fetch("/api/multibranch/branch"),
+                    fetch("/api/students?limit=1"),
+                    fetch("/api/fees-payment"),
+                    fetch("/api/online-admission"),
+               ]);
+
+               if (branchRes.ok) {
+                    const data = await branchRes.json();
+                    setBranches(Array.isArray(data) ? data : []);
+               }
+
+               let totalStudents = 0;
+               if (studentRes.ok) {
+                    const data = await studentRes.json();
+                    totalStudents = data.totalEntries ?? 0;
+               }
+
+               let totalFees = 0;
+               let paidFees = 0;
+               if (paymentRes.ok) {
+                    const payments = await paymentRes.json();
+                    if (Array.isArray(payments)) {
+                         payments.forEach((p: any) => {
+                              totalFees += Number(p.amount ?? 0);
+                              paidFees += Number(p.paid_amount ?? p.amount ?? 0);
+                         });
+                    }
+               }
+
+               let onlineAdmissions = 0;
+               if (onlineAdmRes.ok) {
+                    const admissions = await onlineAdmRes.json();
+                    onlineAdmissions = Array.isArray(admissions) ? admissions.length : 0;
+               }
+
+               setStats({ totalStudents, onlineAdmissions, totalFees, paidFees });
+          } catch (e) {
+               console.error(e);
+          } finally {
+               setLoading(false);
+          }
      };
+
+     useEffect(() => { fetchData(); }, []);
+
+     const fmt = (n: number) =>
+          new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+
+     const allBranches = [{ _id: "home", name: "Home Branch", url: "" }, ...branches];
+
+     const TableSection = ({
+          title,
+          headers,
+          rows,
+     }: {
+          title: string;
+          headers: string[];
+          rows: (string | number)[][];
+     }) => (
+          <div className="w-full py-[20px] px-[24px] rounded-lg bg-white dark:bg-darkblack-600 mb-6">
+               <div className="flex flex-col space-y-5">
+                    <h3 className="text-lg font-semibold text-bgray-900 dark:text-white">{title}</h3>
+                    <div className="table-content w-full overflow-x-auto">
+                         <table className="w-full">
+                              <thead>
+                                   <tr className="border-b border-bgray-300 dark:border-darkblack-400">
+                                        {headers.map((h) => (
+                                             <td key={h} className="py-4 px-4 xl:px-0">
+                                                  <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">{h}</span>
+                                             </td>
+                                        ))}
+                                   </tr>
+                              </thead>
+                              <tbody>
+                                   {loading ? (
+                                        <tr>
+                                             <td colSpan={headers.length} className="py-6 text-center text-sm text-bgray-500">
+                                                  Loading...
+                                             </td>
+                                        </tr>
+                                   ) : rows.length === 0 ? (
+                                        <tr>
+                                             <td colSpan={headers.length} className="py-6 text-center text-sm text-bgray-500">
+                                                  No data available
+                                             </td>
+                                        </tr>
+                                   ) : (
+                                        rows.map((row, i) => (
+                                             <tr key={i} className="border-b border-bgray-300 dark:border-darkblack-400">
+                                                  {row.map((cell, j) => (
+                                                       <td key={j} className="py-4 px-4 xl:px-0">
+                                                            <p className={`text-sm ${j === 0 ? "font-medium text-bgray-900 dark:text-bgray-50" : "font-normal text-bgray-600 dark:text-bgray-300"}`}>
+                                                                 {cell}
+                                                            </p>
+                                                       </td>
+                                                  ))}
+                                             </tr>
+                                        ))
+                                   )}
+                              </tbody>
+                         </table>
+                    </div>
+               </div>
+          </div>
+     );
+
+     const currentYear = `${new Date().getFullYear() - 1}-${String(new Date().getFullYear()).slice(2)}`;
+
+     const feesRows = allBranches.map((b) => [
+          b.name,
+          currentYear,
+          b._id === "home" ? stats.totalStudents : "-",
+          b._id === "home" ? fmt(stats.totalFees) : "-",
+          b._id === "home" ? fmt(stats.paidFees) : "-",
+          b._id === "home" ? fmt(stats.totalFees - stats.paidFees) : "-",
+     ]);
+
+     const admissionRows = allBranches.map((b) => [
+          b.name,
+          currentYear,
+          b._id === "home" ? stats.totalStudents : "-",
+          b._id === "home" ? stats.onlineAdmissions : "-",
+     ]);
 
      return (
           <>
                <div className="2xl:flex 2xl:space-x-[48px]">
                     <section className="2xl:flex-1 2xl:mb-0 mb-6">
-                         {/* Overview Header */}
-                         <div className="w-full py-[20px] px-[24px] rounded-lg bg-white dark:bg-darkblack-600 mb-6">
-                              <div className="flex justify-between items-center">
-                                   <h2 className="text-xl font-bold text-bgray-900 dark:text-white">Overview</h2>
-                                   <button
-                                        type="button"
-                                        className="px-4 py-2 rounded-lg bg-bgray-200 dark:bg-darkblack-500 hover:bg-bgray-300 dark:hover:bg-darkblack-400 transition-all"
-                                   >
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                             <path d="M6 9L6 2L18 2V9M6 9H4M6 9H18M18 9H20M4 9L2 21L5 22H19L22 21L20 9M9 19V14H15V19" stroke="#A0AEC0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                        </svg>
-                                   </button>
-                              </div>
+                         {/* Header */}
+                         <div className="w-full py-[20px] px-[24px] rounded-lg bg-white dark:bg-darkblack-600 mb-6 flex justify-between items-center">
+                              <h2 className="text-xl font-bold text-bgray-900 dark:text-white">Overview</h2>
+                              <button
+                                   onClick={fetchData}
+                                   className="px-4 py-2 rounded-lg bg-bgray-100 dark:bg-darkblack-500 hover:bg-bgray-200 dark:hover:bg-darkblack-400 transition-all"
+                                   title="Refresh"
+                              >
+                                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                        <path d="M1 4V10H7" stroke="#A0AEC0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                        <path d="M3.51 15C4.15839 16.8404 5.38734 18.4202 7.01166 19.5014C8.63598 20.5826 10.5677 21.1066 12.5157 20.9945C14.4637 20.8824 16.3226 20.1402 17.8121 18.8798C19.3017 17.6194 20.3413 15.909 20.7742 14.0064C21.2070 12.1037 21.0102 10.112 20.2126 8.33111C19.4150 6.55025 18.0605 5.07685 16.3528 4.13176C14.6451 3.18668 12.6769 2.82051 10.7447 3.09017C8.81245 3.35984 7.02091 4.25127 5.64 5.64L1 10" stroke="#A0AEC0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                   </svg>
+                              </button>
                          </div>
 
-                         {/* Fees Details */}
-                         <div className="w-full py-[20px] px-[24px] rounded-lg bg-white dark:bg-darkblack-600 mb-6">
-                              <div className="flex flex-col space-y-5">
-                                   <h3 className="text-lg font-semibold text-bgray-900 dark:text-white">Fees Details</h3>
-                                   
-                                   <div className="table-content w-full overflow-x-auto">
-                                        <table className="w-full">
-                                             <thead>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Branch</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Current Session</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Total Students</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Total Fees</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Total Paid Fees</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Total Balance Fees</span>
-                                                       </td>
-                                                  </tr>
-                                             </thead>
-                                             <tbody>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Home Branch</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2025-26</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">66</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$6,39,800.02</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$82,720.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$5,57,080.02</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 1</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2025-26</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">15</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$42,750.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$2,980.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$39,770.00</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 2</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2025-26</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">11</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$21,750.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$2,200.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$19,550.00</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 3</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2025-26</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">14</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$48,050.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$3,550.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$44,500.00</p>
-                                                       </td>
-                                                  </tr>
-                                             </tbody>
-                                        </table>
-                                   </div>
-                              </div>
-                         </div>
+                         <TableSection
+                              title="Fees Details"
+                              headers={["Branch", "Current Session", "Total Students", "Total Fees", "Total Paid Fees", "Total Balance Fees"]}
+                              rows={feesRows}
+                         />
 
-                         {/* Transport Fees Details */}
-                         <div className="w-full py-[20px] px-[24px] rounded-lg bg-white dark:bg-darkblack-600 mb-6">
-                              <div className="flex flex-col space-y-5">
-                                   <h3 className="text-lg font-semibold text-bgray-900 dark:text-white">Transport Fees Details</h3>
-                                   
-                                   <div className="table-content w-full overflow-x-auto">
-                                        <table className="w-full">
-                                             <thead>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Branch</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Current Session</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Total Fees</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Total Paid Fees</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Total Balance Fees</span>
-                                                       </td>
-                                                  </tr>
-                                             </thead>
-                                             <tbody>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Home Branch</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2025-26</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$32,850.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$2,420.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$30,430.00</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 1</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2025-26</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$2,950.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$100.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$2,850.00</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 2</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2025-26</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$4,550.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$100.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$4,450.00</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 3</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2025-26</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$2,850.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$50.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$2,800.00</p>
-                                                       </td>
-                                                  </tr>
-                                             </tbody>
-                                        </table>
-                                   </div>
-                              </div>
-                         </div>
+                         <TableSection
+                              title="Student Admission"
+                              headers={["Branch", "Current Session", "Offline Admission", "Online Admission"]}
+                              rows={admissionRows}
+                         />
 
-                         {/* Student Admission */}
-                         <div className="w-full py-[20px] px-[24px] rounded-lg bg-white dark:bg-darkblack-600 mb-6">
-                              <div className="flex flex-col space-y-5">
-                                   <h3 className="text-lg font-semibold text-bgray-900 dark:text-white">Student Admission</h3>
-                                   
-                                   <div className="table-content w-full overflow-x-auto">
-                                        <table className="w-full">
-                                             <thead>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Branch</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Current Session</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Offline Admission</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Online Admission</span>
-                                                       </td>
-                                                  </tr>
-                                             </thead>
-                                             <tbody>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Home Branch</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2025-26</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">14</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 1</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2025-26</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">3</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 2</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2025-26</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">3</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 3</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2025-26</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">3</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2</p>
-                                                       </td>
-                                                  </tr>
-                                             </tbody>
-                                        </table>
-                                   </div>
-                              </div>
-                         </div>
+                         <TableSection
+                              title="Library Details"
+                              headers={["Branch", "Total Books", "Members", "Book Issued"]}
+                              rows={allBranches.map((b) => [b.name, "-", "-", "-"])}
+                         />
 
-                         {/* Library Details */}
-                         <div className="w-full py-[20px] px-[24px] rounded-lg bg-white dark:bg-darkblack-600 mb-6">
-                              <div className="flex flex-col space-y-5">
-                                   <h3 className="text-lg font-semibold text-bgray-900 dark:text-white">Library Details</h3>
-                                   
-                                   <div className="table-content w-full overflow-x-auto">
-                                        <table className="w-full">
-                                             <thead>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Branch</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Total Books</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Members</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Book Issued</span>
-                                                       </td>
-                                                  </tr>
-                                             </thead>
-                                             <tbody>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Home Branch</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">-</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">-</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">-</p>
-                                                       </td>
-                                                  </tr>
-                                             </tbody>
-                                        </table>
-                                   </div>
-                              </div>
-                         </div>
-
-                         {/* Alumni Students */}
-                         <div className="w-full py-[20px] px-[24px] rounded-lg bg-white dark:bg-darkblack-600 mb-6">
-                              <div className="flex flex-col space-y-5">
-                                   <h3 className="text-lg font-semibold text-bgray-900 dark:text-white">Alumni Students</h3>
-                                   
-                                   <div className="table-content w-full overflow-x-auto">
-                                        <table className="w-full">
-                                             <thead>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Branch</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Alumni Students</span>
-                                                       </td>
-                                                  </tr>
-                                             </thead>
-                                             <tbody>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Home Branch</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">4</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 1</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 2</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">5</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 3</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2</p>
-                                                       </td>
-                                                  </tr>
-                                             </tbody>
-                                        </table>
-                                   </div>
-                              </div>
-                         </div>
-
-                         {/* Staff Payroll Of November */}
-                         <div className="w-full py-[20px] px-[24px] rounded-lg bg-white dark:bg-darkblack-600 mb-6">
-                              <div className="flex flex-col space-y-5">
-                                   <h3 className="text-lg font-semibold text-bgray-900 dark:text-white">Staff Payroll Of November</h3>
-                                   
-                                   <div className="table-content w-full overflow-x-auto">
-                                        <table className="w-full">
-                                             <thead>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Branch</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Total Staff</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Payroll Generated</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Payroll Not Generated</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Payroll Paid</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Net Amount</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Paid Amount</span>
-                                                       </td>
-                                                  </tr>
-                                             </thead>
-                                             <tbody>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Home Branch</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">10</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">1</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">2</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">7</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$1,50,230.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$1,35,240.00</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 1</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">7</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">0</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">7</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">0</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$0.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$0.00</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 2</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">7</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">0</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">7</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">0</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$0.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$0.00</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 3</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">8</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">0</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">8</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">0</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$0.00</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">$0.00</p>
-                                                       </td>
-                                                  </tr>
-                                             </tbody>
-                                        </table>
-                                   </div>
-                              </div>
-                         </div>
-
-                         {/* Staff Attendance Details At 12/16/2025 */}
-                         <div className="w-full py-[20px] px-[24px] rounded-lg bg-white dark:bg-darkblack-600 mb-6">
-                              <div className="flex flex-col space-y-5">
-                                   <h3 className="text-lg font-semibold text-bgray-900 dark:text-white">Staff Attendance Details At 12/16/2025</h3>
-                                   
-                                   <div className="table-content w-full overflow-x-auto">
-                                        <table className="w-full">
-                                             <thead>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Branch</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Total Staff</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Present</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Absent</span>
-                                                       </td>
-                                                  </tr>
-                                             </thead>
-                                             <tbody>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Home Branch</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">10</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">-</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">-</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 1</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">7</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">-</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">-</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 2</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">7</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">-</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">-</p>
-                                                       </td>
-                                                  </tr>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Mount Carmel School 3</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">8</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">-</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">-</p>
-                                                       </td>
-                                                  </tr>
-                                             </tbody>
-                                        </table>
-                                   </div>
-                              </div>
-                         </div>
-
-                         {/* User Log Details */}
-                         <div className="w-full py-[20px] px-[24px] rounded-lg bg-white dark:bg-darkblack-600">
-                              <div className="flex flex-col space-y-5">
-                                   <h3 className="text-lg font-semibold text-bgray-900 dark:text-white">User Log Details</h3>
-                                   
-                                   <div className="table-content w-full overflow-x-auto">
-                                        <table className="w-full">
-                                             <thead>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Branch</span>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <span className="text-sm font-semibold text-bgray-600 dark:text-bgray-50">Total User Log</span>
-                                                       </td>
-                                                  </tr>
-                                             </thead>
-                                             <tbody>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-medium text-sm text-bgray-900 dark:text-bgray-50">Home Branch</p>
-                                                       </td>
-                                                       <td className="py-4 px-4 xl:px-0">
-                                                            <p className="font-normal text-sm text-bgray-600 dark:text-bgray-300">176</p>
-                                                       </td>
-                                                  </tr>
-                                             </tbody>
-                                        </table>
-                                   </div>
-                              </div>
-                         </div>
+                         <TableSection
+                              title="Alumni Students"
+                              headers={["Branch", "Alumni Students"]}
+                              rows={allBranches.map((b) => [b.name, "-"])}
+                         />
                     </section>
                </div>
           </>
