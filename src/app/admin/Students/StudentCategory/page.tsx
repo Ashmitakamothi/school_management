@@ -4,15 +4,24 @@ import React, { useEffect, useState } from "react";
 export default function StudentCategory() {
      const [categories, setCategories] = useState<any[]>([]);
      const [newCategory, setNewCategory] = useState("");
+     const [editingId, setEditingId] = useState<string | null>(null);
+     const [editValue, setEditValue] = useState("");
      const [openFilter, setOpenFilter] = useState<string | null>(null);
+
+     const fetchCategories = async () => {
+          const res = await fetch("/api/student-categories");
+          if (res.ok) setCategories(await res.json());
+     };
+
+     useEffect(() => {
+          fetchCategories();
+     }, []);
 
      const handleDelete = async (category: string) => {
           if (confirm("Are you sure you want to delete this category?")) {
                try {
                     await fetch(`/api/student-categories/${encodeURIComponent(category)}`, { method: "DELETE" });
-                    const res = await fetch("/api/student-categories");
-                    const data = await res.json();
-                    setCategories(data);
+                    fetchCategories();
                } catch (error) {
                     console.error("Error deleting category:", error);
                }
@@ -23,14 +32,6 @@ export default function StudentCategory() {
           setOpenFilter(openFilter === type ? null : type);
      };
 
-     useEffect(() => {
-          const fetchCategories = async () => {
-               const res = await fetch("/api/student-categories");
-               if (res.ok) setCategories(await res.json());
-          };
-          fetchCategories();
-     }, []);
-
      const handleAddCategory = async () => {
           if (!newCategory) return;
           const res = await fetch("/api/student-categories", {
@@ -39,9 +40,29 @@ export default function StudentCategory() {
                body: JSON.stringify({ category: newCategory })
           });
           if (res.ok) {
-               const saved = await res.json();
-               setCategories([...categories, saved]);
                setNewCategory("");
+               fetchCategories();
+          }
+     };
+
+     const handleEditClick = (cat: any) => {
+          setEditingId(cat._id);
+          setEditValue(cat.category);
+          setOpenFilter(null);
+     };
+
+     const handleUpdateCategory = async () => {
+          if (!editingId || !editValue) return;
+          const originalCategory = categories.find(c => c._id === editingId)?.category;
+          const res = await fetch(`/api/student-categories/${encodeURIComponent(originalCategory)}`, {
+               method: "PUT",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({ category: editValue })
+          });
+          if (res.ok) {
+               setEditingId(null);
+               setEditValue("");
+               fetchCategories();
           }
      };
 
@@ -53,6 +74,9 @@ export default function StudentCategory() {
                               {/* Left Side: Add Category Form */}
                               <div className="w-full py-5 px-6 rounded-lg bg-white dark:bg-darkblack-600 max-w-[320px]">
                                    <div className="flex flex-col space-y-5">
+                                        <h3 className="text-lg font-bold text-bgray-900 dark:text-white">
+                                             {editingId ? "Edit Category" : "Add Category"}
+                                        </h3>
                                         <div className="w-full space-y-4">
                                              <div className="w-full border border-transparent focus-within:border-success-300 bg-bgray-200 dark:bg-darkblack-500 rounded-lg px-[18px]">
                                                   <div className="flex w-full h-[50px] items-center space-x-[15px]">
@@ -66,20 +90,31 @@ export default function StudentCategory() {
                                                             <input
                                                                  type="text"
                                                                  placeholder="Category Name"
-                                                                 value={newCategory}
-                                                                 onChange={(e) => setNewCategory(e.target.value)}
+                                                                 value={editingId ? editValue : newCategory}
+                                                                 onChange={(e) => editingId ? setEditValue(e.target.value) : setNewCategory(e.target.value)}
                                                                  className="search-input w-full bg-bgray-200 border-none px-0 focus:outline-none focus:ring-0 text-sm placeholder:text-sm text-bgray-600 tracking-wide placeholder:font-medium placeholder:text-bgray-500 dark:bg-darkblack-500 dark:text-white"
                                                             />
                                                        </label>
                                                   </div>
                                              </div>
-                                             <button
-                                                  type="button"
-                                                  onClick={handleAddCategory}
-                                                  className="py-3.5 flex items-center justify-center text-white font-bold bg-success-300 hover:bg-success-400 transition-all rounded-lg w-full"
-                                             >
-                                                  Add Category
-                                             </button>
+                                             <div className="flex gap-2">
+                                                  {editingId && (
+                                                       <button
+                                                            type="button"
+                                                            onClick={() => { setEditingId(null); setEditValue(""); }}
+                                                            className="py-3 px-4 flex items-center justify-center text-bgray-600 font-bold bg-bgray-100 hover:bg-bgray-200 transition-all rounded-lg w-full"
+                                                       >
+                                                            Cancel
+                                                       </button>
+                                                  )}
+                                                  <button
+                                                       type="button"
+                                                       onClick={editingId ? handleUpdateCategory : handleAddCategory}
+                                                       className="py-3.5 flex items-center justify-center text-white font-bold bg-success-300 hover:bg-success-400 transition-all rounded-lg w-full"
+                                                  >
+                                                       {editingId ? "Update" : "Add Category"}
+                                                  </button>
+                                             </div>
                                         </div>
                                    </div>
                               </div>
@@ -158,7 +193,12 @@ export default function StudentCategory() {
                                                                            </button>
                                                                            <div className={`rounded-lg shadow-lg bg-white dark:bg-darkblack-500 min-w-[120px] absolute right-0 z-10 top-8 overflow-hidden transition-all ${openFilter === `action-${cat._id || idx}` ? "block" : "hidden"}`}>
                                                                                 <ul>
-                                                                                     <li className="text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 dark:hover:bg-darkblack-600 font-semibold">Edit</li>
+                                                                                     <li
+                                                                                          onClick={() => handleEditClick(cat)}
+                                                                                          className="text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 dark:hover:bg-darkblack-600 font-semibold"
+                                                                                     >
+                                                                                          Edit
+                                                                                     </li>
                                                                                      <li
                                                                                           onClick={() => handleDelete(cat.category)}
                                                                                           className="text-sm text-red-500 cursor-pointer px-5 py-2 hover:bg-bgray-100 dark:hover:bg-darkblack-600 font-semibold"

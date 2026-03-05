@@ -125,7 +125,9 @@ export default function StudenDetails() {
                try {
                     const res = await fetch(`/api/students/${id}`, { method: "DELETE" });
                     if (res.ok) {
-                         setStudents(students.filter(s => s.admission_no !== id));
+                         const updatedList = students.filter(s => s.admission_no !== id);
+                         setStudents(updatedList);
+                         setFilteredStudents(updatedList);
                          setActiveActionId(null);
                     } else {
                          alert("Failed to delete student: " + res.statusText);
@@ -148,7 +150,9 @@ export default function StudenDetails() {
                });
 
                if (res.ok) {
-                    setStudents(students.filter(s => s.admission_no !== disableStudent.admission_no));
+                    const updatedList = students.filter(s => s.admission_no !== disableStudent.admission_no);
+                    setStudents(updatedList);
+                    setFilteredStudents(updatedList);
                     setDisableStudent(null);
                     setSelectedReason("");
                } else {
@@ -173,7 +177,9 @@ export default function StudenDetails() {
 
                if (res.ok) {
                     const updatedStudent = await res.json();
-                    setStudents(students.map(s => s.admission_no === editStudent.admission_no ? updatedStudent : s));
+                    const updatedList = students.map(s => s.admission_no === editStudent.admission_no ? updatedStudent : s);
+                    setStudents(updatedList);
+                    setFilteredStudents(updatedList);
                     setEditStudent(null);
                } else {
                     const errorData = await res.json();

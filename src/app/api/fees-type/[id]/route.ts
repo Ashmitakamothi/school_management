@@ -5,7 +5,7 @@ import FeeType from "@/models/FeeType";
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
     await dbConnect();
-    const { id } = params;
+    const { id } = await params;
     try {
         const body = await req.json();
         const updatedType = await FeeType.findByIdAndUpdate(id, body, { new: true });
@@ -24,7 +24,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
     await dbConnect();
-    const { id } = params;
+    const { id } = await params;
     try {
         const deletedType = await FeeType.findByIdAndDelete(id);
         if (!deletedType) {

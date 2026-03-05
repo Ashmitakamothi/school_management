@@ -5,9 +5,10 @@ import FeeMaster from "@/models/FeeMaster";
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
     await dbConnect();
+    const { id } = await params;
     try {
         const body = await req.json();
-        const updated = await FeeMaster.findByIdAndUpdate(params.id, body, { new: true });
+        const updated = await FeeMaster.findByIdAndUpdate(id, body, { new: true });
         if (!updated) {
             return NextResponse.json({ error: "Fee Master not found" }, { status: 404 });
         }
@@ -20,8 +21,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
     await dbConnect();
+    const { id } = await params;
     try {
-        const deleted = await FeeMaster.findByIdAndDelete(params.id);
+        const deleted = await FeeMaster.findByIdAndDelete(id);
         if (!deleted) {
             return NextResponse.json({ error: "Fee Master not found" }, { status: 404 });
         }

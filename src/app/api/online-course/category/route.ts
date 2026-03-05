@@ -23,6 +23,20 @@ export async function POST(req: Request) {
     }
 }
 
+export async function PUT(req: Request) {
+    try {
+        await dbConnect();
+        const body = await req.json();
+        const { _id, ...updateData } = body;
+        if (!_id) return NextResponse.json({ error: "ID required" }, { status: 400 });
+        const updated = await CourseCategory.findByIdAndUpdate(_id, updateData, { new: true });
+        if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
+        return NextResponse.json(updated);
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message || "Failed to update category" }, { status: 500 });
+    }
+}
+
 export async function DELETE(req: Request) {
     try {
         await dbConnect();

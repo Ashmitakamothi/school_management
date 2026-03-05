@@ -4,17 +4,24 @@ import React, { useEffect, useState } from "react";
 export default function SchoolHouse() {
      const [houses, setHouses] = useState<any[]>([]);
      const [newHouse, setNewHouse] = useState({ house_name: "", description: "" });
+     const [editingId, setEditingId] = useState<string | null>(null);
+     const [editValue, setEditValue] = useState({ house_name: "", description: "" });
      const [openFilter, setOpenFilter] = useState<string | null>(null);
+
+     const fetchHouses = async () => {
+          try {
+               const res = await fetch("/api/student-houses");
+               if (res.ok) setHouses(await res.json());
+          } catch (error) {
+               console.error("Error fetching houses:", error);
+          }
+     };
 
      const handleDelete = async (houseName: string) => {
           if (confirm("Are you sure you want to delete this house?")) {
                try {
                     await fetch(`/api/student-houses/${encodeURIComponent(houseName)}`, { method: "DELETE" });
-                    const res = await fetch("/api/student-houses");
-                    if (res.ok) {
-                         const data = await res.json();
-                         setHouses(data);
-                    }
+                    fetchHouses();
                } catch (error) {
                     console.error("Error deleting house:", error);
                }
@@ -26,14 +33,6 @@ export default function SchoolHouse() {
      };
 
      useEffect(() => {
-          const fetchHouses = async () => {
-               try {
-                    const res = await fetch("/api/student-houses");
-                    if (res.ok) setHouses(await res.json());
-               } catch (error) {
-                    console.error("Error fetching houses:", error);
-               }
-          };
           fetchHouses();
      }, []);
 
@@ -46,15 +45,42 @@ export default function SchoolHouse() {
                     body: JSON.stringify(newHouse)
                });
                if (res.ok) {
-                    const saved = await res.json();
-                    setHouses([...houses, saved]);
                     setNewHouse({ house_name: "", description: "" });
+                    fetchHouses();
                } else {
                     const errData = await res.json();
                     alert(errData.error || "Failed to add house");
                }
           } catch (error) {
                console.error("Error adding house:", error);
+          }
+     };
+
+     const handleEditClick = (house: any) => {
+          setEditingId(house._id);
+          setEditValue({ house_name: house.house_name, description: house.description || "" });
+          setOpenFilter(null);
+     };
+
+     const handleUpdateHouse = async () => {
+          if (!editingId || !editValue.house_name) return;
+          const originalHouse = houses.find(h => h._id === editingId)?.house_name;
+          try {
+               const res = await fetch(`/api/student-houses/${encodeURIComponent(originalHouse)}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(editValue)
+               });
+               if (res.ok) {
+                    setEditingId(null);
+                    setEditValue({ house_name: "", description: "" });
+                    fetchHouses();
+               } else {
+                    const errData = await res.json();
+                    alert(errData.error || "Failed to update house");
+               }
+          } catch (error) {
+               console.error("Error updating house:", error);
           }
      };
      return (
@@ -65,21 +91,23 @@ export default function SchoolHouse() {
                          <div className="flex items-start gap-6 lg:flex-row md:flex-row flex-col">
                               <div className="w-full py-5 px-6 rounded-lg bg-white dark:bg-darkblack-600 max-w-[320px]">
                                    <div className="flex flex-col space-y-5">
+                                        <h3 className="text-lg font-bold text-bgray-900 dark:text-white">
+                                             {editingId ? "Edit School House" : "Add School House"}
+                                        </h3>
                                         <div className="w-full space-y-4">
                                              <div
                                                   className="w-full sm:block hidden border border-transparent focus-within:border-success-300 bg-bgray-200 dark:bg-darkblack-500 rounded-lg"
                                              >
                                                   <div
-                                                       className="flex w-full h-full items-center space-x-[15px]"
+                                                       className="flex w-full h-full items-center space-x-[15px] px-4"
                                                   >
                                                        <label className="w-full">
                                                             <input
                                                                  type="text"
-                                                                 id="listSearch"
-                                                                 placeholder="Add School House"
-                                                                 value={newHouse.house_name}
-                                                                 onChange={(e) => setNewHouse({ ...newHouse, house_name: e.target.value })}
-                                                                 className="search-input w-full bg-bgray-200 border-none focus:outline-none focus:ring-0 text-sm placeholder:text-sm text-bgray-600 tracking-wide placeholder:font-medium placeholder:text-bgray-500 dark:bg-darkblack-500 dark:text-white"
+                                                                 placeholder="House Name"
+                                                                 value={editingId ? editValue.house_name : newHouse.house_name}
+                                                                 onChange={(e) => editingId ? setEditValue({ ...editValue, house_name: e.target.value }) : setNewHouse({ ...newHouse, house_name: e.target.value })}
+                                                                 className="search-input w-full h-[50px] bg-bgray-200 border-none focus:outline-none focus:ring-0 text-sm placeholder:text-sm text-bgray-600 tracking-wide placeholder:font-medium placeholder:text-bgray-500 dark:bg-darkblack-500 dark:text-white"
                                                             />
                                                        </label>
                                                   </div>
@@ -88,26 +116,37 @@ export default function SchoolHouse() {
                                                   className="w-full sm:block hidden border border-transparent focus-within:border-success-300 bg-bgray-200 dark:bg-darkblack-500 rounded-lg"
                                              >
                                                   <div
-                                                       className="flex w-full h-full items-center space-x-[15px]"
+                                                       className="flex w-full h-full items-center space-x-[15px] px-4 py-2"
                                                   >
                                                        <label className="w-full">
                                                             <textarea
-                                                                 id="listSearch"
                                                                  placeholder="Description"
-                                                                 value={newHouse.description}
-                                                                 onChange={(e) => setNewHouse({ ...newHouse, description: e.target.value })}
-                                                                 className="search-input w-full bg-bgray-200 border-none focus:outline-none focus:ring-0 text-sm placeholder:text-sm text-bgray-600 tracking-wide placeholder:font-medium placeholder:text-bgray-500 dark:bg-darkblack-500 dark:text-white"
+                                                                 rows={3}
+                                                                 value={editingId ? editValue.description : newHouse.description}
+                                                                 onChange={(e) => editingId ? setEditValue({ ...editValue, description: e.target.value }) : setNewHouse({ ...newHouse, description: e.target.value })}
+                                                                 className="search-input w-full bg-bgray-200 border-none focus:outline-none focus:ring-0 text-sm placeholder:text-sm text-bgray-600 tracking-wide placeholder:font-medium placeholder:text-bgray-500 dark:bg-darkblack-500 dark:text-white resize-none"
                                                             />
                                                        </label>
                                                   </div>
                                              </div>
-                                             <button
-                                                  type="button"
-                                                  onClick={handleAddHouse}
-                                                  className="py-3.5 flex items-center justify-center text-white font-bold bg-success-300 hover:bg-success-400 transition-all rounded-lg w-full"
-                                             >
-                                                  Add School House
-                                             </button>
+                                             <div className="flex gap-2">
+                                                  {editingId && (
+                                                       <button
+                                                            type="button"
+                                                            onClick={() => { setEditingId(null); setEditValue({ house_name: "", description: "" }); }}
+                                                            className="py-3 px-4 flex items-center justify-center text-bgray-600 font-bold bg-bgray-100 hover:bg-bgray-200 transition-all rounded-lg w-full"
+                                                       >
+                                                            Cancel
+                                                       </button>
+                                                  )}
+                                                  <button
+                                                       type="button"
+                                                       onClick={editingId ? handleUpdateHouse : handleAddHouse}
+                                                       className="py-3.5 flex items-center justify-center text-white font-bold bg-success-300 hover:bg-success-400 transition-all rounded-lg w-full"
+                                                  >
+                                                       {editingId ? "Update" : "Add School House"}
+                                                  </button>
+                                             </div>
                                         </div>
                                    </div>
                               </div>
@@ -414,7 +453,7 @@ export default function SchoolHouse() {
                                                                            >
                                                                                 <ul>
                                                                                      <li className="text-nowrap text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold text-left">View</li>
-                                                                                     <li className="text-nowrap text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold text-left">Edit</li>
+                                                                                     <li onClick={() => handleEditClick(house)} className="text-nowrap text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold text-left">Edit</li>
                                                                                      <li
                                                                                           onClick={() => handleDelete(house.house_name)}
                                                                                           className="text-nowrap text-sm text-red-500 cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold text-left"

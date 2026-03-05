@@ -6,6 +6,7 @@ export default function AddCategory() {
      const [categoryName, setCategoryName] = useState("");
      const [categories, setCategories] = useState<any[]>([]);
      const [loading, setLoading] = useState(true);
+     const [editingId, setEditingId] = useState<string | null>(null);
 
      const fetchCategories = async () => {
           setLoading(true);
@@ -31,21 +32,28 @@ export default function AddCategory() {
      };
 
      const handleSaveCategory = async () => {
-          if (categoryName.trim()) {
-               try {
-                    const res = await fetch("/api/online-course/category", {
-                         method: "POST",
-                         headers: { "Content-Type": "application/json" },
-                         body: JSON.stringify({ name: categoryName })
-                    });
-                    if (res.ok) {
-                         setCategoryName("");
-                         fetchCategories();
-                    }
-               } catch (error) {
-                    console.error("Failed to save category");
+          if (!categoryName.trim()) return;
+          try {
+               const method = editingId ? "PUT" : "POST";
+               const body = editingId ? { _id: editingId, name: categoryName } : { name: categoryName };
+               const res = await fetch("/api/online-course/category", {
+                    method,
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body)
+               });
+               if (res.ok) {
+                    setCategoryName("");
+                    setEditingId(null);
+                    fetchCategories();
                }
+          } catch (error) {
+               console.error("Failed to save category");
           }
+     };
+
+     const handleEditCategory = (category: any) => {
+          setEditingId(category._id);
+          setCategoryName(category.name);
      };
 
      const handleDeleteCategory = async (id: string) => {
@@ -70,7 +78,7 @@ export default function AddCategory() {
                          <div className="flex items-start gap-6 lg:flex-row md:flex-row flex-col">
                               {/* Add Category Section */}
                               <div className="w-full py-5 px-6 rounded-lg bg-white dark:bg-darkblack-600 lg:max-w-[400px]">
-                                   <h2 className="text-xl font-bold text-bgray-900 dark:text-white mb-5">Add Category</h2>
+                                   <h2 className="text-xl font-bold text-bgray-900 dark:text-white mb-5">{editingId ? "Edit Category" : "Add Category"}</h2>
                                    <div className="flex flex-col space-y-5">
                                         <div className="w-full space-y-4">
                                              <div className="w-full">
@@ -85,13 +93,24 @@ export default function AddCategory() {
                                                        className="w-full px-4 py-3 border border-bgray-300 dark:border-darkblack-400 rounded-lg focus:outline-none focus:border-success-300 bg-white dark:bg-darkblack-500 text-bgray-900 dark:text-white"
                                                   />
                                              </div>
-                                             <button
-                                                  type="button"
-                                                  onClick={handleSaveCategory}
-                                                  className="py-3.5 flex items-center justify-center text-white font-bold bg-bgray-900 hover:bg-bgray-800 transition-all rounded-lg w-full dark:bg-darkblack-500 dark:hover:bg-darkblack-400"
-                                             >
-                                                  Save
-                                             </button>
+                                             <div className="flex gap-2">
+                                                  {editingId && (
+                                                       <button
+                                                            type="button"
+                                                            onClick={() => { setEditingId(null); setCategoryName(""); }}
+                                                            className="py-3 px-4 flex items-center justify-center text-bgray-600 font-bold bg-bgray-100 hover:bg-bgray-200 transition-all rounded-lg w-full"
+                                                       >
+                                                            Cancel
+                                                       </button>
+                                                  )}
+                                                  <button
+                                                       type="button"
+                                                       onClick={handleSaveCategory}
+                                                       className="py-3.5 flex items-center justify-center text-white font-bold bg-bgray-900 hover:bg-bgray-800 transition-all rounded-lg w-full dark:bg-darkblack-500 dark:hover:bg-darkblack-400"
+                                                  >
+                                                       {editingId ? "Update" : "Save"}
+                                                  </button>
+                                             </div>
                                         </div>
                                    </div>
                               </div>
@@ -205,6 +224,17 @@ export default function AddCategory() {
                                                                       </td>
                                                                       <td className="py-5 px-6 xl:px-0 text-right pr-6">
                                                                            <div className="flex justify-end gap-3">
+                                                                                <button
+                                                                                     type="button"
+                                                                                     onClick={() => handleEditCategory(category)}
+                                                                                     className="hover:text-success-300 transition-colors"
+                                                                                     title="Edit"
+                                                                                >
+                                                                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                          <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" className="stroke-bgray-900 dark:stroke-white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                                                          <path d="M18.5 2.5C18.8978 2.10217 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10217 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10217 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" className="stroke-bgray-900 dark:stroke-white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                                                     </svg>
+                                                                                </button>
                                                                                 <button
                                                                                      type="button"
                                                                                      onClick={() => handleDeleteCategory(category._id)}

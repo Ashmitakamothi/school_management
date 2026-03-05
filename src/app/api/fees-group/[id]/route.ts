@@ -5,7 +5,7 @@ import FeeGroup from "@/models/FeeGroup";
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
     await dbConnect();
-    const { id } = params;
+    const { id } = await params;
     try {
         const body = await req.json();
         const updatedGroup = await FeeGroup.findByIdAndUpdate(id, body, { new: true });
@@ -24,7 +24,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
     await dbConnect();
-    const { id } = params;
+    const { id } = await params;
     try {
         const deletedGroup = await FeeGroup.findByIdAndDelete(id);
         if (!deletedGroup) {

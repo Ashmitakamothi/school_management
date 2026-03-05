@@ -7,7 +7,8 @@ import FeePayment from "@/models/FeePayment";
 export async function GET(req: Request, { params }: { params: { id: string } }) {
     try {
         await connectToDatabase();
-        const studentId = params.id;
+        const { id } = await params;
+        const studentId = id;
 
         // Fetch student details
         const student = await Student.findById(studentId);
