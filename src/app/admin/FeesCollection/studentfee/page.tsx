@@ -3,10 +3,43 @@ import React, { useEffect, useState } from "react";
 
 export default function StudentFee() {
      const [openFilter, setOpenFilter] = useState<"class" | "section" | "action" | "pagination" | "export" | null>(null);
+     const [students, setStudents] = useState<any[]>([]);
+     const [classes, setClasses] = useState<string[]>(["1st", "2nd", "3rd", "4th", "5th"]); // Fallback classes
+     const [sections, setSections] = useState<string[]>(["A", "B", "C", "D"]); // Fallback sections
+     const [loading, setLoading] = useState(false);
+     const [error, setError] = useState<string | null>(null);
+     const [searchQuery, setSearchQuery] = useState("");
+     const [selectedClass, setSelectedClass] = useState<string | null>(null);
+     const [selectedSection, setSelectedSection] = useState<string | null>(null);
+
+     const fetchStudents = async () => {
+          setLoading(true);
+          try {
+               let url = "/api/students?";
+               if (selectedClass) url += `class=${selectedClass}&`;
+               if (selectedSection) url += `section=${selectedSection}&`;
+               if (searchQuery) url += `search=${searchQuery}&`;
+
+               const res = await fetch(url);
+               if (res.ok) {
+                    const result = await res.json();
+                    setStudents(result.data || []);
+               }
+          } catch (err) {
+               setError("Failed to fetch students");
+          } finally {
+               setLoading(false);
+          }
+     };
+
+     useEffect(() => {
+          fetchStudents();
+     }, [selectedClass, selectedSection, searchQuery]);
 
      const toggleFilter = (type: "class" | "section" | "action" | "pagination" | "export") => {
           setOpenFilter(openFilter === type ? null : type);
      };
+
      return (
           <>
                <div className="2xl:flex 2xl:space-x-[48px]">
@@ -33,14 +66,12 @@ export default function StudentFee() {
                                                                  cx="9.80204"
                                                                  cy="10.6761"
                                                                  r="8.98856"
-
                                                                  strokeWidth="1.5"
                                                                  strokeLinecap="round"
                                                                  strokeLinejoin="round"
                                                             />
                                                             <path
                                                                  d="M16.0537 17.3945L19.5777 20.9094"
-
                                                                  strokeWidth="1.5"
                                                                  strokeLinecap="round"
                                                                  strokeLinejoin="round"
@@ -51,6 +82,8 @@ export default function StudentFee() {
                                                        <input
                                                             type="text"
                                                             id="listSearch"
+                                                            value={searchQuery}
+                                                            onChange={(e) => setSearchQuery(e.target.value)}
                                                             placeholder="Search Students..."
                                                             className="search-input w-full bg-bgray-200 border-none px-0 focus:outline-none focus:ring-0 text-sm placeholder:text-sm text-bgray-600 tracking-wide placeholder:font-medium placeholder:text-bgray-500 dark:bg-darkblack-500 dark:text-white"
                                                        />
@@ -63,7 +96,9 @@ export default function StudentFee() {
                                                   className="w-full h-full rounded-lg bg-bgray-200 px-4 flex justify-between items-center relative dark:bg-darkblack-500"
                                                   onClick={() => toggleFilter("class")}
                                              >
-                                                  <span className="text-base text-bgray-500 text-nowrap">Select Class</span>
+                                                  <span className="text-base text-bgray-500 text-nowrap">
+                                                       {selectedClass || "Select Class"}
+                                                  </span>
                                                   <span>
                                                        <svg
                                                             width="21"
@@ -88,9 +123,17 @@ export default function StudentFee() {
                                                        }`}
                                              >
                                                   <ul>
-                                                       <li className="text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold">1St</li>
-                                                       <li className="text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold">2nd</li>
-                                                       <li className="text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold">3rd</li>
+                                                       <li
+                                                            onClick={() => { setSelectedClass(null); setOpenFilter(null); }}
+                                                            className="text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold"
+                                                       >All Classes</li>
+                                                       {classes.map(c => (
+                                                            <li
+                                                                 key={c}
+                                                                 onClick={() => { setSelectedClass(c); setOpenFilter(null); }}
+                                                                 className="text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold"
+                                                            >{c}</li>
+                                                       ))}
                                                   </ul>
                                              </div>
                                         </div>
@@ -101,7 +144,9 @@ export default function StudentFee() {
                                                   className="w-full h-full rounded-lg bg-bgray-200 px-4 flex justify-between items-center relative dark:bg-darkblack-500"
                                                   onClick={() => toggleFilter("section")}
                                              >
-                                                  <span className="text-base text-bgray-500 text-nowrap">Select Section</span>
+                                                  <span className="text-base text-bgray-500 text-nowrap">
+                                                       {selectedSection || "Select Section"}
+                                                  </span>
                                                   <span>
                                                        <svg
                                                             width="21"
@@ -126,9 +171,17 @@ export default function StudentFee() {
                                                        }`}
                                              >
                                                   <ul>
-                                                       <li className="text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold">A</li>
-                                                       <li className="text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold">B</li>
-                                                       <li className="text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold">C</li>
+                                                       <li
+                                                            onClick={() => { setSelectedSection(null); setOpenFilter(null); }}
+                                                            className="text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold"
+                                                       >All Sections</li>
+                                                       {sections.map(s => (
+                                                            <li
+                                                                 key={s}
+                                                                 onClick={() => { setSelectedSection(s); setOpenFilter(null); }}
+                                                                 className="text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold"
+                                                            >{s}</li>
+                                                       ))}
                                                   </ul>
                                              </div>
                                         </div>
@@ -545,98 +598,75 @@ export default function StudentFee() {
                                                   </tr>
                                              </thead>
                                              <tbody>
-                                                  <tr className="border-b border-bgray-300 dark:border-darkblack-400">
-                                                       <td className="py-5 px-6 xl:px-0">
-                                                            <p className="font-medium text-base text-bgray-900 dark:text-bgray-50">
-                                                                 Class 3
-                                                            </p>
-                                                       </td>
-                                                       <td className="py-5 px-6 xl:px-0">
-                                                            <p className="font-medium text-base text-bgray-900 dark:text-bgray-50">
-                                                                B
-                                                            </p>
-                                                       </td>
-                                                       <td className="py-5 px-6 xl:px-0">
-                                                            <p className="font-medium text-base text-bgray-900 dark:text-bgray-50">
-                                                                 10th
-                                                            </p>
-                                                       </td>
-                                                       <td className="py-5 px-6 xl:px-0">
-                                                            <p className="font-medium text-base text-bgray-900 dark:text-bgray-50">
-                                                                 Partam Singh
-                                                            </p>
-                                                       </td>
-                                                       <td className="py-5 px-6 xl:px-0">
-                                                            <p className="font-medium text-base text-bgray-900 dark:text-bgray-50">
-                                                                 21-12-1999
-                                                            </p>
-                                                       </td>
-                                                       <td className="py-5 px-6 xl:px-0">
-                                                            <p className="font-medium text-base text-bgray-900 dark:text-bgray-50">
-                                                                 Male
-                                                            </p>
-                                                       </td>
-                                                       <td className="py-5 px-6 xl:px-0">
-                                                            <p className="font-medium text-base text-bgray-900 dark:text-bgray-50">
-                                                                 OBC
-                                                            </p>
-                                                       </td>
-                                                       <td className="py-5 px-6 xl:px-0">
-                                                            <p className="font-medium text-base text-bgray-900 dark:text-bgray-50">
-                                                                 +91-9876543210
-                                                            </p>
-                                                       </td>
-                                                       <td className="py-5 px-6 xl:px-0">
-
-                                                            <div className="relative">
-                                                                 <button
-                                                                      type="button"
-                                                                      onClick={() => toggleFilter("action")}
-                                                                 >
-                                                                      <svg
-                                                                           width="18"
-                                                                           height="4"
-                                                                           viewBox="0 0 18 4"
-                                                                           fill="none"
-                                                                           xmlns="http://www.w3.org/2000/svg"
-                                                                      >
-                                                                           <path
-                                                                                d="M8 2.00024C8 2.55253 8.44772 3.00024 9 3.00024C9.55228 3.00024 10 2.55253 10 2.00024C10 1.44796 9.55228 1.00024 9 1.00024C8.44772 1.00024 8 1.44796 8 2.00024Z"
-                                                                                stroke="#A0AEC0"
-                                                                                strokeWidth="2"
-                                                                                strokeLinecap="round"
-                                                                                strokeLinejoin="round"
-                                                                           />
-                                                                           <path
-                                                                                d="M1 2.00024C1 2.55253 1.44772 3.00024 2 3.00024C2.55228 3.00024 3 2.55253 3 2.00024C3 1.44796 2.55228 1.00024 2 1.00024C1.44772 1.00024 1 1.44796 1 2.00024Z"
-                                                                                stroke="#A0AEC0"
-                                                                                strokeWidth="2"
-                                                                                strokeLinecap="round"
-                                                                                strokeLinejoin="round"
-                                                                           />
-                                                                           <path
-                                                                                d="M15 2.00024C15 2.55253 15.4477 3.00024 16 3.00024C16.5523 3.00024 17 2.55253 17 2.00024C17 1.44796 16.5523 1.00024 16 1.00024C15.4477 1.00024 15 1.44796 15 2.00024Z"
-                                                                                stroke="#A0AEC0"
-                                                                                strokeWidth="2"
-                                                                                strokeLinecap="round"
-                                                                                strokeLinejoin="round"
-                                                                           />
-                                                                      </svg>
-                                                                 </button>
-
-                                                                 <div
-                                                                      className={`rounded-lg w-full shadow-lg bg-white dark:bg-darkblack-500 min-w-[150px] absolute right-0 z-10 top-14 overflow-hidden transition-all ${openFilter === "action" ? "block" : "hidden"
-                                                                           }`}
-                                                                 >
-                                                                      <ul>
-                                                                           <li className="text-nowrap text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold">View</li>
-                                                                           <li className="text-nowrap text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold">Edit</li>
-                                                                           <li className="text-nowrap text-sm text-bgray-900 dark:text-white cursor-pointer px-5 py-2 hover:bg-bgray-100 hover:dark:bg-darkblack-600 font-semibold">Add Fee</li>
-                                                                      </ul>
-                                                                 </div>
-                                                            </div>
-                                                       </td>
-                                                  </tr>
+                                                  {loading ? (
+                                                       <tr>
+                                                            <td colSpan={9} className="py-10 text-center text-bgray-600 dark:text-bgray-50">
+                                                                 Loading students...
+                                                            </td>
+                                                       </tr>
+                                                  ) : students.length > 0 ? (
+                                                       students.map((student) => (
+                                                            <tr key={student._id} className="border-b border-bgray-300 dark:border-darkblack-400">
+                                                                 <td className="py-5 px-6 xl:px-0">
+                                                                      <p className="font-medium text-base text-bgray-900 dark:text-bgray-50">
+                                                                           {student.class}
+                                                                      </p>
+                                                                 </td>
+                                                                 <td className="py-5 px-6 xl:px-0">
+                                                                      <p className="font-medium text-base text-bgray-900 dark:text-bgray-50">
+                                                                           {student.section}
+                                                                      </p>
+                                                                 </td>
+                                                                 <td className="py-5 px-6 xl:px-0">
+                                                                      <p className="font-medium text-base text-bgray-900 dark:text-bgray-50">
+                                                                           {student.admission_no}
+                                                                      </p>
+                                                                 </td>
+                                                                 <td className="py-5 px-6 xl:px-0">
+                                                                      <p className="font-medium text-base text-bgray-900 dark:text-bgray-50">
+                                                                           {student.fname} {student.lname}
+                                                                      </p>
+                                                                 </td>
+                                                                 <td className="py-5 px-6 xl:px-0">
+                                                                      <p className="font-medium text-base text-bgray-900 dark:text-bgray-50">
+                                                                           {student.dob}
+                                                                      </p>
+                                                                 </td>
+                                                                 <td className="py-5 px-6 xl:px-0">
+                                                                      <p className="font-medium text-base text-bgray-900 dark:text-bgray-50">
+                                                                           {student.gender}
+                                                                      </p>
+                                                                 </td>
+                                                                 <td className="py-5 px-6 xl:px-0">
+                                                                      <p className="font-medium text-base text-bgray-900 dark:text-bgray-50">
+                                                                           {student.category}
+                                                                      </p>
+                                                                 </td>
+                                                                 <td className="py-5 px-6 xl:px-0">
+                                                                      <p className="font-medium text-base text-bgray-900 dark:text-bgray-50">
+                                                                           {student.mobile}
+                                                                      </p>
+                                                                 </td>
+                                                                 <td className="py-5 px-6 xl:px-0 text-right">
+                                                                      <div className="relative inline-block text-left">
+                                                                           <button
+                                                                                type="button"
+                                                                                className="px-4 py-2 text-sm font-medium text-white bg-success-300 rounded-lg hover:bg-success-400 transition-all"
+                                                                                onClick={() => window.location.href = `/admin/FeesCollection/studentfee/${student._id}`}
+                                                                           >
+                                                                                Collect Fees
+                                                                           </button>
+                                                                      </div>
+                                                                 </td>
+                                                            </tr>
+                                                       ))
+                                                  ) : (
+                                                       <tr>
+                                                            <td colSpan={9} className="py-10 text-center text-bgray-600 dark:text-bgray-50">
+                                                                 No students found.
+                                                            </td>
+                                                       </tr>
+                                                  )}
                                              </tbody>
                                         </table>
                                    </div>
